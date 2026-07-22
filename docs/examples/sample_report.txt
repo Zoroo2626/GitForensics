@@ -1,0 +1,30 @@
+╭─────────────────────────────────────────╮
+│ GitForensics Analysis Report (v0.1.0)   │
+│ Repository: /path/to/example-repository │
+╰─────────────────────────────────────────╯
+Scan Timestamp: 2026-01-01T12:00:00Z | Revision:
+1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b
+Commits: 25 | Contributors: 2 | Tags: 1 | Workflows: 1
+GitHub API Metadata: None (Offline/Local) | Status: Complete
+--------------------------------------------------------------------------------
+Overall Assessment: Low observed concern (5/100)
+Transparent Risk Score: 5/100
+                                Findings Summary
+┏━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ Rule ID  ┃ Severity   ┃ Confidence ┃ Title & Evidence                        ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ GF002    │ MEDIUM     │ HIGH       │ Mechanically regular commit intervals   │
+│          │            │            │   Evidence: commit_count=5,             │
+│          │            │            │ interval_seconds=300                    │
+│          │            │            │ 5 consecutive commits were created at   │
+│          │            │            │ exact 300-second intervals.             │
+└──────────┴────────────┴────────────┴─────────────────────────────────────────┘
+
+Scoring Contribution Breakdown:
+Formula: Score = MIN(100, SUM(Capped_Groups) +
+SUM(Individual_Weighted_Findings))
+
+Skipped Checks (8): GF008, GF010, GF011, GF012, GF013, GF014, GF015, GF016
+
+Disclaimer: GitForensics reports observable anomalies and evidence. It does not
+declare repository maliciousness.

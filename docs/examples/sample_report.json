@@ -1,0 +1,88 @@
+{
+  "assessment_label": "Low observed concern",
+  "duration_seconds": 0.15,
+  "failed_detectors": [],
+  "findings": [
+    {
+      "confidence": "HIGH",
+      "description": "5 consecutive commits were created at exact 300-second intervals.",
+      "evidence": {
+        "commit_count": 5,
+        "interval_seconds": 300
+      },
+      "rule_id": "GF002",
+      "severity": "MEDIUM",
+      "title": "Mechanically regular commit intervals"
+    }
+  ],
+  "gitforensics_version": "0.1.0",
+  "github_metadata_available": false,
+  "head_commit": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b",
+  "incomplete_analysis_reasons": [],
+  "input_type": "local",
+  "is_complete": true,
+  "release_analysis": null,
+  "repository": "/path/to/example-repository",
+  "risk_score": 5,
+  "scan_timestamp": "2026-01-01T12:00:00Z",
+  "schema_version": "1.0.0",
+  "score_explanation": {
+    "applied_groupings_and_caps": [],
+    "assessment_label": "Low observed concern",
+    "base_score": 5,
+    "excluded_findings": [],
+    "finding_contributions": [
+      {
+        "base_weight": 5.0,
+        "confidence": "HIGH",
+        "confidence_multiplier": 1.0,
+        "rule_id": "GF002",
+        "severity": "MEDIUM",
+        "title": "Mechanically regular commit intervals",
+        "weighted_contribution": 5.0
+      }
+    ],
+    "formula": "Score = MIN(100, SUM(Capped_Groups) + SUM(Individual_Weighted_Findings))",
+    "is_complete": true,
+    "max_possible_score": 100,
+    "score": 5,
+    "scoring_model_version": "1.0.0"
+  },
+  "scoring_breakdown": {
+    "applied_groupings_and_caps": [],
+    "assessment_label": "Low observed concern",
+    "base_score": 5,
+    "excluded_findings": [],
+    "finding_contributions": [
+      {
+        "base_weight": 5.0,
+        "confidence": "HIGH",
+        "confidence_multiplier": 1.0,
+        "rule_id": "GF002",
+        "severity": "MEDIUM",
+        "title": "Mechanically regular commit intervals",
+        "weighted_contribution": 5.0
+      }
+    ],
+    "formula": "Score = MIN(100, SUM(Capped_Groups) + SUM(Individual_Weighted_Findings))",
+    "is_complete": true,
+    "max_possible_score": 100,
+    "score": 5,
+    "scoring_model_version": "1.0.0"
+  },
+  "skipped_detectors": [
+    "GF008",
+    "GF010",
+    "GF011",
+    "GF012",
+    "GF013",
+    "GF014",
+    "GF015",
+    "GF016"
+  ],
+  "total_commits": 25,
+  "total_contributors": 2,
+  "total_releases": 0,
+  "total_tags": 1,
+  "total_workflows": 1
+}

@@ -1,0 +1,74 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "gitforensics"
+version = "0.1.0"
+description = "Local-first Python CLI that analyzes Git repository history and reports evidence of unusual repository activity."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [
+    { name = "GitForensics Contributors" }
+]
+keywords = ["git", "forensics", "security", "static-analysis", "audit", "git-history"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Version Control :: Git",
+]
+dependencies = [
+    "typer>=0.9.0",
+    "rich>=13.0.0",
+    "httpx>=0.24.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/GitForensics/GitForensics"
+Repository = "https://github.com/GitForensics/GitForensics.git"
+Documentation = "https://github.com/GitForensics/GitForensics/tree/main/docs"
+Issues = "https://github.com/GitForensics/GitForensics/issues"
+
+[project.scripts]
+gitforensics = "gitforensics.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/gitforensics"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/benchmarks",
+    "/src",
+    "/docs",
+    "/CONTRIBUTING.md",
+    "/LICENSE",
+    "/README.md",
+    "/SECURITY.md",
+    "/pyproject.toml",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["B008"]
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]

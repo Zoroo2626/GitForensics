@@ -5,11 +5,12 @@ from typer.testing import CliRunner
 from gitforensics.cli import app
 
 runner = CliRunner()
+HELP_ENV = {"COLUMNS": "160", "NO_COLOR": "1"}
 
 
 def test_cli_help() -> None:
     """Test gitforensics --help output."""
-    result = runner.invoke(app, ["--help"])
+    result = runner.invoke(app, ["--help"], env=HELP_ENV)
     assert result.exit_code == 0
     assert "GitForensics" in result.output
     assert "scan" in result.output
@@ -24,7 +25,7 @@ def test_cli_version() -> None:
 
 def test_scan_help() -> None:
     """Test gitforensics scan --help output."""
-    result = runner.invoke(app, ["scan", "--help"])
+    result = runner.invoke(app, ["scan", "--help"], env=HELP_ENV)
     assert result.exit_code == 0
     assert "Scan a repository" in result.output
     assert "--format" in result.output

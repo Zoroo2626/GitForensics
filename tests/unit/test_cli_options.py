@@ -9,11 +9,12 @@ from gitforensics.cli import app
 from tests.helpers.git_fixtures import add_commit, create_dummy_repo
 
 runner = CliRunner()
+HELP_ENV = {"COLUMNS": "160", "NO_COLOR": "1"}
 
 
 def test_cli_help_and_version() -> None:
     """Test --help and --version options return exit code 0."""
-    res_help = runner.invoke(app, ["--help"])
+    res_help = runner.invoke(app, ["--help"], env=HELP_ENV)
     assert res_help.exit_code == 0
     assert "GitForensics" in res_help.stdout
 
@@ -24,7 +25,7 @@ def test_cli_help_and_version() -> None:
 
 def test_cli_scan_help() -> None:
     """Test scan --help returns exit code 0."""
-    res = runner.invoke(app, ["scan", "--help"])
+    res = runner.invoke(app, ["scan", "--help"], env=HELP_ENV)
     assert res.exit_code == 0
     assert "--fail-on" in res.stdout
     assert "--offline" in res.stdout

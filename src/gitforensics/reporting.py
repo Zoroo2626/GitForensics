@@ -3,8 +3,10 @@
 import json
 import os
 import tempfile
+from collections.abc import Callable
 from pathlib import Path
 from types import MappingProxyType
+from typing import Any, cast
 
 from rich.console import Console
 from rich.markup import escape
@@ -175,10 +177,12 @@ def _is_pid_running(pid: int) -> bool:
         process_query_limited_information = 0x1000
         error_invalid_parameter = 87
         still_active = 259
-        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        win_dll = cast(Callable[..., Any], ctypes.__dict__["WinDLL"])
+        get_last_error = cast(Callable[[], int], ctypes.__dict__["get_last_error"])
+        kernel32 = win_dll("kernel32", use_last_error=True)
         handle = kernel32.OpenProcess(process_query_limited_information, False, pid)
         if not handle:
-            return ctypes.get_last_error() != error_invalid_parameter
+            return get_last_error() != error_invalid_parameter
         try:
             exit_code = wintypes.DWORD()
             if not kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):

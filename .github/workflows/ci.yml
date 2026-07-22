@@ -52,8 +52,4 @@ jobs:
       - name: Smoke test clean wheel installation
         run: |
           python -m venv .smoke_env
-          ${{ runner.os == 'Windows' && '.smoke_env\Scripts\python.exe' || '.smoke_env/bin/python' }} -m pip install dist/*.whl
-          ${{ runner.os == 'Windows' && '.smoke_env\Scripts\gitforensics.exe' || '.smoke_env/bin/gitforensics' }} --help
-          ${{ runner.os == 'Windows' && '.smoke_env\Scripts\gitforensics.exe' || '.smoke_env/bin/gitforensics' }} --version
-          ${{ runner.os == 'Windows' && '.smoke_env\Scripts\gitforensics.exe' || '.smoke_env/bin/gitforensics' }} scan --help
-          ${{ runner.os == 'Windows' && '.smoke_env\Scripts\python.exe' || '.smoke_env/bin/python' }} -m gitforensics --help
+          python -c "import pathlib, subprocess, sys; scripts = 'Scripts' if sys.platform == 'win32' else 'bin'; python = pathlib.Path('.smoke_env') / scripts / ('python.exe' if sys.platform == 'win32' else 'python'); cli = pathlib.Path('.smoke_env') / scripts / ('gitforensics.exe' if sys.platform == 'win32' else 'gitforensics'); wheel = next(pathlib.Path('dist').glob('*.whl')); subprocess.check_call([str(python), '-m', 'pip', 'install', str(wheel)]); subprocess.check_call([str(cli), '--help']); subprocess.check_call([str(cli), '--version']); subprocess.check_call([str(cli), 'scan', '--help']); subprocess.check_call([str(python), '-m', 'gitforensics', '--help'])"

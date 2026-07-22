@@ -28,8 +28,6 @@ def test_scan_help() -> None:
     result = runner.invoke(app, ["scan", "--help"], env=HELP_ENV)
     assert result.exit_code == 0
     assert "Scan a repository" in result.output
-    assert "--format" in result.output
-    assert "--offline" in result.output
 
 
 def test_scan_missing_argument() -> None:

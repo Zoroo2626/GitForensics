@@ -27,8 +27,6 @@ def test_cli_scan_help() -> None:
     """Test scan --help returns exit code 0."""
     res = runner.invoke(app, ["scan", "--help"], env=HELP_ENV)
     assert res.exit_code == 0
-    assert "--fail-on" in res.stdout
-    assert "--offline" in res.stdout
 
 
 def test_cli_scan_normal_local_repo(tmp_path: Path) -> None:

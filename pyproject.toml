@@ -32,10 +32,10 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/GitForensics/GitForensics"
-Repository = "https://github.com/GitForensics/GitForensics.git"
-Documentation = "https://github.com/GitForensics/GitForensics/tree/main/docs"
-Issues = "https://github.com/GitForensics/GitForensics/issues"
+Homepage = "https://github.com/Zoroo2626/GitForensics"
+Repository = "https://github.com/Zoroo2626/GitForensics.git"
+Documentation = "https://github.com/Zoroo2626/GitForensics/tree/main/docs"
+Issues = "https://github.com/Zoroo2626/GitForensics/issues"
 
 [project.scripts]
 gitforensics = "gitforensics.cli:main"

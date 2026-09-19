@@ -33,6 +33,7 @@ class SignatureCoverageDetector(BaseDetector):
         valid_count = 0
         invalid_count = 0
         unsigned_count = 0
+        unknown_count = 0
         bad_or_revoked = False
         failed_sig_commits_data: list[dict[str, str]] = []
         representative_invalid_hashes: list[str] = []
@@ -60,10 +61,14 @@ class SignatureCoverageDetector(BaseDetector):
                     failed_sig_commits_data.append({"hash": c.hash, "status": status.value})
                 if len(representative_invalid_hashes) < 5:
                     representative_invalid_hashes.append(c.hash)
-            else:
+            elif status == SignatureStatus.UNSIGNED:
                 unsigned_count += 1
+            else:
+                unknown_count += 1
 
-        coverage_percentage = round((signed_count / total_commits) * 100.0, 2)
+        coverage_percentage = (
+            None if unknown_count else round((signed_count / total_commits) * 100.0, 2)
+        )
 
         findings: list[Finding] = []
 
@@ -78,6 +83,7 @@ class SignatureCoverageDetector(BaseDetector):
                     "valid_signature_count": valid_count,
                     "invalid_signature_count": invalid_count,
                     "unsigned_commit_count": unsigned_count,
+                    "unknown_signature_count": unknown_count,
                     "signature_coverage_percentage": coverage_percentage,
                     "failed_signature_commits": failed_sig_commits_data,
                     "representative_commit_hashes": representative_invalid_hashes,
@@ -97,7 +103,7 @@ class SignatureCoverageDetector(BaseDetector):
             findings.append(finding)
 
         # 2. Informational signature coverage summary (if total commits >= min_commits)
-        if total_commits >= self.min_commits and not invalid_count:
+        if (total_commits >= self.min_commits or unknown_count) and not invalid_count:
             evidence = Evidence(
                 data={
                     "total_commits": total_commits,
@@ -105,6 +111,7 @@ class SignatureCoverageDetector(BaseDetector):
                     "valid_signature_count": valid_count,
                     "invalid_signature_count": 0,
                     "unsigned_commit_count": unsigned_count,
+                    "unknown_signature_count": unknown_count,
                     "signature_coverage_percentage": coverage_percentage,
                     "failed_signature_commits": [],
                     "representative_commit_hashes": [c.hash for c in commits[:5]],
@@ -112,10 +119,20 @@ class SignatureCoverageDetector(BaseDetector):
             )
             finding = Finding(
                 rule_id=self.get_rule_id(),
-                title="Commit Signature Coverage Summary",
+                title=(
+                    "Commit Signature Coverage Unavailable"
+                    if unknown_count
+                    else "Commit Signature Coverage Summary"
+                ),
                 description=(
-                    f"Signature coverage is {coverage_percentage}% "
-                    f"({signed_count}/{total_commits} signed)."
+                    f"Signature coverage is unavailable: {unknown_count}/{total_commits} "
+                    "commit(s) have unknown signature status. Signature presence and validity "
+                    "are not inspected during extraction; verification helpers are disabled."
+                    if unknown_count
+                    else (
+                        f"Signature coverage is {coverage_percentage}% "
+                        f"({signed_count}/{total_commits} signed)."
+                    )
                 ),
                 severity=Severity.INFO,
                 confidence=Confidence.HIGH,

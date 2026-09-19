@@ -63,8 +63,8 @@ This document provides a factual description of each anomaly detector rule in Gi
 * **Title**: Commit signature coverage
 * **Default Severity**: INFO
 * **Default Confidence**: HIGH
-* **Description**: Reports the proportion of commits containing GPG or SSH cryptographic signatures. GitForensics treats signatures conservatively as unverified because external signature verification helpers are disabled during extraction.
-* **Evidence**: Total commits, signed commit count, unsigned commit count, signature ratio.
+* **Description**: Reports signature coverage when commit signature states are known. Default extraction does not inspect signature presence or validity, so GF007 reports coverage as unavailable. External signature verification helpers remain disabled.
+* **Evidence**: Total commits, known signed and unsigned counts, unknown signature count, and signature ratio (null if any status is unknown).
 * **False Positive Context**: Unsigned commits are standard in many open-source projects.
 
 ### GF009: Tag Creation Anomalies
@@ -130,6 +130,7 @@ This document provides a factual description of each anomaly detector rule in Gi
 * **Default Severity**: LOW (or INFO for first release)
 * **Default Confidence**: MEDIUM (or LOW for first release)
 * **Description**: Detects releases with large binary asset payloads where the commit delta since the previous release contains minimal source file changes.
+* **Delta Semantics**: Counts commits reachable from the current release but not the previous release, following all parent edges. File, insertion, and deletion totals sum those commits' extracted statistics; they are not unique-file counts or a net tree diff. Unrelated branches and the previous release's own changes are excluded. Incomplete ancestry leaves deltas unavailable and marks analysis incomplete.
 * **Evidence**: Release name, binary asset count, total asset size in bytes, commits since previous release, file changes since previous release.
 * **False Positive Context**: Pre-compiled binary distributions or standalone artifact releases may accompany small bugfix commits.
 

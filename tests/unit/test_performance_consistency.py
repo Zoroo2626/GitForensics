@@ -311,10 +311,11 @@ def test_large_tag_index_is_deterministic() -> None:
     assert len(first.tags_by_name) == 5_000
 
 
-def test_release_indexes_and_prefix_sums_are_reused_correctly() -> None:
+def test_release_graph_index_and_delta_stats_are_reused_correctly() -> None:
     commits = [
         make_synthetic_commit(
             commit_hash=character * 40,
+            parents=[("b", "a")[index] * 40] if index < 2 else [],
             changed_files_count=index + 1,
             insertions=(index + 1) * 10,
         )
@@ -322,7 +323,7 @@ def test_release_indexes_and_prefix_sums_are_reused_correctly() -> None:
     ]
     context = make_synthetic_context(commits)
     index = build_release_resolution_index(context.history)
-    assert index.files_prefix == (0, 1, 3, 6)
+    assert index.head_ancestors == frozenset(commit.hash for commit in commits)
 
     releases = [
         parse_release_from_api(
@@ -341,8 +342,9 @@ def test_release_indexes_and_prefix_sums_are_reused_correctly() -> None:
         )
     ]
     result = run_release_analysis(releases, context.history, "o", "r")
-    assert result.releases[1].files_changed_since_prev == 6
-    assert result.releases[1].insertions_since_prev == 60
+    assert result.releases[1].commits_since_prev == 2
+    assert result.releases[1].files_changed_since_prev == 3
+    assert result.releases[1].insertions_since_prev == 30
 
 
 def test_api_rules_filter_avoids_unneeded_requests(tmp_path: Path) -> None:

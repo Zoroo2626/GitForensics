@@ -60,3 +60,24 @@ def test_invalid_and_revoked_signatures() -> None:
     f = res.findings[0]
     assert f.severity == Severity.HIGH
     assert f.evidence.data["invalid_signature_count"] == 2
+
+
+def test_unknown_signatures_do_not_count_as_unsigned_or_hide_failures() -> None:
+    commits = [
+        make_synthetic_commit(commit_hash="unknown", signature_status=SignatureStatus.UNKNOWN),
+        make_synthetic_commit(commit_hash="valid", signature_status=SignatureStatus.VALID),
+        make_synthetic_commit(commit_hash="unsigned", signature_status=SignatureStatus.UNSIGNED),
+    ]
+    detector = SignatureCoverageDetector()
+    result = detector.analyze(make_synthetic_context(commits))
+    evidence = result.findings[0].evidence.data
+    assert evidence["signature_coverage_percentage"] is None
+    assert evidence["unknown_signature_count"] == 1
+    assert evidence["unsigned_commit_count"] == 1
+    assert evidence["signed_commit_count"] == 1
+
+    commits.append(make_synthetic_commit(commit_hash="bad", signature_status=SignatureStatus.BAD))
+    result = detector.analyze(make_synthetic_context(commits))
+    assert result.findings[0].severity == Severity.HIGH
+    assert result.findings[0].evidence.data["unknown_signature_count"] == 1
+    assert result.findings[0].evidence.data["signature_coverage_percentage"] is None

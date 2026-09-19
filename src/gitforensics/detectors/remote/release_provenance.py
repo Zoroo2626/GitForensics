@@ -11,6 +11,7 @@ from gitforensics.analysis_summary import get_analysis_summary
 from gitforensics.compat import UTC
 from gitforensics.detectors.base import BaseDetector
 from gitforensics.models import Confidence, DetectorResult, Evidence, Finding, Severity
+from gitforensics.release_analysis import collect_commit_ancestors
 from gitforensics.release_models import (
     AssetCategory,
     AttestationState,
@@ -243,7 +244,7 @@ class ReleaseChronologyConflictDetector(BaseDetector):
             )
 
         findings: list[Finding] = []
-        commit_index = get_analysis_summary(context).commit_index_by_hash
+        commit_by_hash = get_analysis_summary(context).commit_by_hash
 
         resolved = sorted(
             release_result.releases,
@@ -265,22 +266,22 @@ class ReleaseChronologyConflictDetector(BaseDetector):
             # Version order should be non-decreasing when sorted by publication time
             if curr_version < prev_version:
                 # Confirm with commit ancestry if possible
-                curr_commit_idx = commit_index.get(curr.resolved_commit_hash or "", -1)
-                prev_commit_idx = commit_index.get(prev.resolved_commit_hash or "", -1)
-
-                # In git log order (newest-first), higher version should have LOWER index
                 ancestry_conflict_confirmed = False
                 ancestry_desc = "ancestry not determined"
-                if curr_commit_idx >= 0 and prev_commit_idx >= 0:
-                    if curr_commit_idx > prev_commit_idx:
-                        # curr published later but its commit is OLDER (higher index = older)
+                curr_hash = curr.resolved_commit_hash
+                prev_hash = prev.resolved_commit_hash
+                if curr_hash in commit_by_hash and prev_hash in commit_by_hash:
+                    prev_ancestors, _ = collect_commit_ancestors(prev_hash, commit_by_hash)
+                    if curr_hash != prev_hash and curr_hash in prev_ancestors:
                         ancestry_conflict_confirmed = True
                         ancestry_desc = (
                             f"commit of '{curr.release.name}' is older than "
                             f"commit of '{prev.release.name}' in ancestry"
                         )
                     else:
-                        ancestry_desc = "commit ancestry consistent with publication order"
+                        curr_ancestors, _ = collect_commit_ancestors(curr_hash, commit_by_hash)
+                        if prev_hash in curr_ancestors:
+                            ancestry_desc = "commit ancestry consistent with publication order"
 
                 findings.append(
                     Finding(
@@ -346,7 +347,7 @@ class AssetHeavyMinimalSourceDetector(BaseDetector):
 
         findings: list[Finding] = []
 
-        for rr in release_result.releases:
+        for release_index, rr in enumerate(release_result.releases):
             if len(findings) >= context.security_limits.max_findings:
                 break
             binary_assets = [a for a in rr.release.assets if a.is_binary_or_packaged()]
@@ -363,6 +364,8 @@ class AssetHeavyMinimalSourceDetector(BaseDetector):
             commits_since = rr.commits_since_prev
             files_since = rr.files_changed_since_prev
 
+            if commits_since is None and release_index > 0:
+                continue  # Missing ancestry cannot establish minimal source change.
             is_first_release = commits_since is None
             if is_first_release:
                 # First release: contextual info only, not a strong finding

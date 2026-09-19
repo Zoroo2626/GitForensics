@@ -121,7 +121,7 @@ class CommitNode:
     changed_files_count: int = 0
     insertions: int = 0
     deletions: int = 0
-    signature_status: SignatureStatus = SignatureStatus.UNSIGNED
+    signature_status: SignatureStatus = SignatureStatus.UNKNOWN
 
     @property
     def is_root(self) -> bool:
@@ -170,7 +170,7 @@ class TagNode:
     tagger_email: str = ""
     tagger_date: datetime | None = None
     message: str = ""
-    signature_status: SignatureStatus = SignatureStatus.UNSIGNED
+    signature_status: SignatureStatus = SignatureStatus.UNKNOWN
     commit_date: datetime | None = None
 
     def to_dict(self) -> dict[str, Any]:

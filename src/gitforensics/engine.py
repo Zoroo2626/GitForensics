@@ -11,8 +11,8 @@ from gitforensics.analysis_summary import build_analysis_summary
 from gitforensics.compat import UTC
 from gitforensics.detectors import get_default_detectors
 from gitforensics.detectors.base import BaseDetector
-from gitforensics.errors import NetworkError
-from gitforensics.git import RepositoryExtractor
+from gitforensics.errors import CLIArgumentError, NetworkError
+from gitforensics.git import GitRunner, RepositoryExtractor
 from gitforensics.github import GitHubClient
 from gitforensics.models import (
     AnalysisReport,
@@ -21,6 +21,7 @@ from gitforensics.models import (
     RepositoryConsistencyStatus,
     RepositoryContext,
     RepositoryInput,
+    RepositoryInputType,
 )
 from gitforensics.release_analysis import parse_release_from_api, run_release_analysis
 from gitforensics.release_models import AssetVerificationConfig, ReleaseAnalysisResult
@@ -54,18 +55,37 @@ def run_analysis(
 
     limits = security_limits or SecurityLimits()
     limits.validate()
-    extractor = RepositoryExtractor(limits=limits)
-    history = extractor.extract(repo_input)
+
+    if offline and repo_input.input_type == RepositoryInputType.REMOTE:
+        raise CLIArgumentError(
+            "Offline mode requires a local repository; remote cloning is disabled."
+        )
 
     active_detectors = list(detectors if detectors is not None else get_default_detectors())
-    if rules_filter:
-        requested_rules = frozenset(rules_filter)
+    if rules_filter is not None:
+        requested_rules = frozenset(rule.strip() for rule in rules_filter)
+        available_rules = frozenset(_safe_detector_id(detector) for detector in active_detectors)
+        if not requested_rules or "" in requested_rules:
+            raise CLIArgumentError("Rule selection must contain non-empty rule IDs.")
+        unknown_rules = requested_rules - available_rules
+        if unknown_rules:
+            raise CLIArgumentError("Unknown rule IDs: " + ", ".join(sorted(unknown_rules)))
         active_detectors = [
             detector
             for detector in active_detectors
             if _safe_detector_id(detector) in requested_rules
         ]
     active_rule_ids = frozenset(_safe_detector_id(detector) for detector in active_detectors)
+
+    extractor = RepositoryExtractor(
+        limits=limits,
+        runner=GitRunner(
+            max_stdout_bytes=limits.max_git_stdout_bytes,
+            max_stderr_bytes=limits.max_git_stderr_bytes,
+            allow_network=not offline,
+        ),
+    )
+    history = extractor.extract(repo_input)
 
     github_metadata: GitHubMetadata | None = None
     incomplete_reasons: list[str] = list(history.warnings)

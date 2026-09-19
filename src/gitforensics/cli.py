@@ -116,7 +116,7 @@ def scan(
     offline: bool = typer.Option(
         False,
         "--offline",
-        help="Disable all network-dependent GitHub API analysis.",
+        help="Disable network access; requires a local repository.",
     ),
     verify_assets: bool = typer.Option(
         False,
@@ -278,7 +278,7 @@ def scan(
         repo_input = parse_repository_input(path_or_url)
         report, context = run_analysis(
             repo_input,
-            rules_filter=rules.split(",") if rules else None,
+            rules_filter=rules.split(",") if rules is not None else None,
             github_token=github_token if not offline else None,
             offline=offline,
             github_api_url=github_api_url,

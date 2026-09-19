@@ -93,7 +93,7 @@ gitforensics scan owner/repository
 
 ### Offline Mode
 
-Disable all network requests to GitHub API endpoints:
+Disable network access, including Git fetches. Offline mode requires a local repository:
 
 ```bash
 gitforensics scan /path/to/repository --offline
@@ -191,7 +191,7 @@ GitForensics includes 16 deterministic detectors:
 | `GF004` | Contributor concentration | LOW | Single author identity responsible for all commits across a long lifespan |
 | `GF005` | Identity mismatches | HIGH / MEDIUM | Discrepancies between author and committer names or emails |
 | `GF006` | Timestamp ordering anomalies | HIGH / CRITICAL | Child commit timestamp precedes its parent commit timestamp |
-| `GF007` | Commit signature coverage | INFO | Low ratio of signed commits across repository history |
+| `GF007` | Commit signature coverage | INFO | Reports unavailable coverage when signatures have not been inspected |
 | `GF008` | History-modifying workflows | HIGH / CRITICAL | Workflow files containing force push or history alteration commands |
 | `GF009` | Tag anomalies | HIGH / MEDIUM | Tags referencing missing objects or created in sudden bulk bursts |
 | `GF010` | Repository age discrepancy | HIGH / MEDIUM | GitHub repository creation date significantly later than earliest commit |
@@ -249,7 +249,7 @@ Refer to [docs/SECURITY_MODEL.md](docs/SECURITY_MODEL.md) for detailed trust bou
 
 ## Known Limitations
 
-* Commit signatures are reported conservatively as unverified because external signature verification helpers are disabled for security reasons.
+* Commit and tag signature status is unknown because signature presence and validity are not inspected. External verification helpers are disabled for security reasons; GF007 reports coverage as unavailable instead of zero.
 * Remote GitHub API requests are restricted to `api.github.com`. Custom GitHub Enterprise endpoints require manual configuration.
 * Local repository state markers detect filesystem modifications during a scan, but local scans do not create a frozen filesystem snapshot.
 * Release attestation checks parse API metadata only and do not perform cryptographic signature validation.

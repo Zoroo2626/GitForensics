@@ -59,8 +59,8 @@ def test_detector_exception_isolation(tmp_path: Path) -> None:
     assert report is not None
 
 
-def test_local_repository_unsigned_signature_extraction_integration(tmp_path: Path) -> None:
-    """Integration test: extract unsigned commit status from actual local repository."""
+def test_local_repository_unknown_signature_extraction_integration(tmp_path: Path) -> None:
+    """Uninspected signatures remain unknown even for an unsigned fixture."""
     create_dummy_repo(tmp_path)
     add_commit(tmp_path, message="Local test commit")
 
@@ -69,4 +69,4 @@ def test_local_repository_unsigned_signature_extraction_integration(tmp_path: Pa
 
     assert len(history.commits) == 1
     c = history.commits[0]
-    assert c.signature_status == SignatureStatus.UNSIGNED
+    assert c.signature_status == SignatureStatus.UNKNOWN

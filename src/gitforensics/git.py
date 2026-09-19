@@ -143,6 +143,7 @@ class GitRunner:
         default_timeout: float = 30.0,
         max_stdout_bytes: int = 64 * 1024 * 1024,
         max_stderr_bytes: int = 1 * 1024 * 1024,
+        allow_network: bool = True,
     ) -> None:
         if default_timeout <= 0:
             raise ValueError("default_timeout must be positive.")
@@ -151,6 +152,7 @@ class GitRunner:
         self.default_timeout = default_timeout
         self.max_stdout_bytes = max_stdout_bytes
         self.max_stderr_bytes = max_stderr_bytes
+        self.allow_network = allow_network
 
     @staticmethod
     def _safe_environment(home: str) -> dict[str, str]:
@@ -270,13 +272,18 @@ class GitRunner:
             raise ValueError("Git command timeout must be positive.")
 
         with tempfile.TemporaryDirectory(prefix="gitforensics_git_home_") as safe_home:
+            env = self._safe_environment(safe_home)
+            if not self.allow_network:
+                # Also block implicit fetches when a local partial clone lacks objects.
+                env["GIT_ALLOW_PROTOCOL"] = ""
+                env["GIT_NO_LAZY_FETCH"] = "1"
             try:
                 process = subprocess.Popen(
                     full_cmd,
                     cwd=str(cwd) if cwd else None,
                     stdout=subprocess.PIPE,
                     stderr=subprocess.PIPE,
-                    env=self._safe_environment(safe_home),
+                    env=env,
                     shell=False,
                 )
             except FileNotFoundError as err:
@@ -590,7 +597,7 @@ class RepositoryExtractor:
                     changed_files_count=stat[0],
                     insertions=stat[1],
                     deletions=stat[2],
-                    signature_status=SignatureStatus.UNSIGNED,
+                    signature_status=SignatureStatus.UNKNOWN,
                 )
                 commits.append(commit_node)
                 commit_map[commit_hash] = commit_node
@@ -708,6 +715,9 @@ class RepositoryExtractor:
             return digest.hexdigest(), 0, False
         workflow_dir = repo_path / ".github" / "workflows"
         if not workflow_dir.exists() or not workflow_dir.is_dir():
+            return digest.hexdigest(), 0, False
+        if not workflow_dir.resolve().is_relative_to(repo_path.resolve()):
+            digest.update(b"workflow-directory-outside-repository")
             return digest.hexdigest(), 0, False
 
         entries = nsmallest(
@@ -866,7 +876,7 @@ class RepositoryExtractor:
                     ),
                     tagger_date=tagger_date,
                     message=sanitize_text(message, max_chars=4_096, minimize_emails=False),
-                    signature_status=SignatureStatus.UNSIGNED,
+                    signature_status=SignatureStatus.UNKNOWN,
                     commit_date=commit_dt,
                 )
             )
@@ -881,6 +891,9 @@ class RepositoryExtractor:
 
         workflows: list[WorkflowFile] = []
         resolved_root = workflows_dir.resolve()
+        if not resolved_root.is_relative_to(repo_path.resolve()):
+            warnings.append("Workflow directory escaped its repository directory.")
+            return []
         workflow_candidates = nsmallest(
             self.limits.max_workflow_files + 1,
             (

@@ -254,8 +254,9 @@ def test_compute_inter_release_diff_two_releases() -> None:
     # The release targeting commit "aaa..." is older (published first)
     # The release targeting commit "ccc..." is newer (published second)
     second = next(r for r in result.releases if r.release.tag_name == "v2.0.0")
-    # commits_since_prev may be 0 if commits can't be resolved; check it's set
-    assert second.commits_since_prev is not None or second.resolved_commit_hash is None
+    assert second.commits_since_prev == 2
+    assert second.files_changed_since_prev == 2
+    assert second.insertions_since_prev == 20
 
 
 def test_first_release_has_no_commits_since_prev() -> None:

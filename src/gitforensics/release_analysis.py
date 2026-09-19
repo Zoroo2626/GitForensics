@@ -8,6 +8,7 @@ from bisect import bisect_left
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
+from types import MappingProxyType
 from typing import TYPE_CHECKING, Any
 
 import httpx
@@ -26,7 +27,7 @@ from gitforensics.release_models import (
 from gitforensics.security import SecurityLimits, sanitize_text
 
 if TYPE_CHECKING:
-    from gitforensics.models import ExtractedHistory, TagNode
+    from gitforensics.models import CommitNode, ExtractedHistory, TagNode
 
 logger = logging.getLogger(__name__)
 
@@ -134,35 +135,46 @@ def parse_release_from_api(
 
 @dataclass(frozen=True)
 class ReleaseResolutionIndex:
-    """Immutable indexes and prefix sums reused across all releases in one run."""
+    """Commit graph and lookup indexes reused across all releases in one run."""
 
     tag_by_name: Mapping[str, "TagNode"]
     commit_hashes: frozenset[str]
     sorted_commit_hashes: tuple[str, ...]
-    commit_index: Mapping[str, int]
-    files_prefix: tuple[int, ...]
-    insertions_prefix: tuple[int, ...]
-    deletions_prefix: tuple[int, ...]
+    commit_by_hash: Mapping[str, "CommitNode"]
+    head_ancestors: frozenset[str]
+
+
+def collect_commit_ancestors(
+    start: str | None, commit_by_hash: Mapping[str, "CommitNode"]
+) -> tuple[set[str], bool]:
+    """Walk parent edges once per commit, including the tip; flag missing history."""
+    ancestors: set[str] = set()
+    pending = [start] if start else []
+    complete = bool(start)
+    while pending:
+        commit_hash = pending.pop()
+        if commit_hash in ancestors:
+            continue
+        ancestors.add(commit_hash)
+        commit = commit_by_hash.get(commit_hash)
+        if commit is None:
+            complete = False
+            continue
+        pending.extend(commit.parents)
+    return ancestors, complete
 
 
 def build_release_resolution_index(history: "ExtractedHistory") -> ReleaseResolutionIndex:
     """Build bounded lookup tables once instead of once per release and detector."""
     commit_hashes = frozenset(commit.hash for commit in history.commits)
-    files_prefix = [0]
-    insertions_prefix = [0]
-    deletions_prefix = [0]
-    for commit in history.commits:
-        files_prefix.append(files_prefix[-1] + commit.changed_files_count)
-        insertions_prefix.append(insertions_prefix[-1] + commit.insertions)
-        deletions_prefix.append(deletions_prefix[-1] + commit.deletions)
+    commit_by_hash = {commit.hash: commit for commit in history.commits}
+    head_ancestors, _ = collect_commit_ancestors(history.head_commit, commit_by_hash)
     return ReleaseResolutionIndex(
         tag_by_name={tag.short_name: tag for tag in history.tags},
         commit_hashes=commit_hashes,
         sorted_commit_hashes=tuple(sorted(commit_hashes)),
-        commit_index={commit.hash: index for index, commit in enumerate(history.commits)},
-        files_prefix=tuple(files_prefix),
-        insertions_prefix=tuple(insertions_prefix),
-        deletions_prefix=tuple(deletions_prefix),
+        commit_by_hash=MappingProxyType(commit_by_hash),
+        head_ancestors=frozenset(head_ancestors),
     )
 
 
@@ -243,20 +255,14 @@ def resolve_release_to_history(
                 f"target_commitish '{tc}' is not a resolvable hash."
             )
 
-    # Check reachability from HEAD (default branch approximation)
-    if resolved.resolved_commit_hash and history.commits:
-        head = history.head_commit
-        if head:
-            # In the extracted linear history list, check if the resolved commit
-            # appears within the ancestry chain (commits are ordered newest-first)
-            head_idx = resolution_index.commit_index.get(head, -1)
-            tgt_idx = resolution_index.commit_index.get(resolved.resolved_commit_hash, -1)
-            if head_idx >= 0 and tgt_idx >= 0 and tgt_idx >= head_idx:
-                resolved.is_reachable_from_default_branch = True
-            elif tgt_idx >= 0:
-                resolved.is_reachable_from_any_ref = True
-            elif tgt_idx < 0 and resolved.resolved_commit_hash:
-                resolved.is_reachable_from_any_ref = False
+    # A fresh remote clone's HEAD is the default branch. Local callers use HEAD.
+    if resolved.resolved_commit_hash:
+        resolved.is_reachable_from_default_branch = (
+            resolved.resolved_commit_hash in resolution_index.head_ancestors
+        )
+        resolved.is_reachable_from_any_ref = (
+            resolved.resolved_commit_hash in resolution_index.commit_hashes
+        )
 
     return resolved
 
@@ -266,8 +272,7 @@ def compute_inter_release_diff(
     history: "ExtractedHistory",
     index: ReleaseResolutionIndex | None = None,
 ) -> list[ResolvedRelease]:
-    """Computes commits/files since previous release for chronologically ordered releases."""
-    # Build commit order index (newest first = lower index is newer)
+    """Sum per-commit stats for ancestors(current) minus ancestors(previous)."""
     resolution_index = index or build_release_resolution_index(history)
 
     # Sort by publication timestamp
@@ -280,41 +285,28 @@ def compute_inter_release_diff(
         ),
     )
 
+    previous_ancestors: set[str] = set()
+    previous_complete = False
     for i, rr in enumerate(pub_sorted):
-        if i == 0:
-            rr.prev_resolved_commit = None
-            rr.commits_since_prev = None  # First release: no prior release
-            continue
-
-        prev = pub_sorted[i - 1]
-        rr.prev_resolved_commit = prev.resolved_commit_hash
-
-        if rr.resolved_commit_hash and prev.resolved_commit_hash:
-            curr_idx = resolution_index.commit_index.get(rr.resolved_commit_hash, -1)
-            prev_idx = resolution_index.commit_index.get(prev.resolved_commit_hash, -1)
-            if curr_idx >= 0 and prev_idx >= 0:
-                # commits between two points (newer = lower idx, older = higher idx)
-                if prev_idx > curr_idx:
-                    range_start, range_end = curr_idx, prev_idx + 1
-                elif prev_idx == curr_idx:
-                    range_start, range_end = curr_idx, curr_idx
-                else:
-                    # Release ordering conflict: newer release points to older commit
-                    range_start, range_end = prev_idx, curr_idx + 1
-
-                rr.commits_since_prev = max(0, (range_end - range_start) - 1)
-                rr.files_changed_since_prev = (
-                    resolution_index.files_prefix[range_end]
-                    - resolution_index.files_prefix[range_start]
-                )
-                rr.insertions_since_prev = (
-                    resolution_index.insertions_prefix[range_end]
-                    - resolution_index.insertions_prefix[range_start]
-                )
-                rr.deletions_since_prev = (
-                    resolution_index.deletions_prefix[range_end]
-                    - resolution_index.deletions_prefix[range_start]
-                )
+        rr.prev_resolved_commit = pub_sorted[i - 1].resolved_commit_hash if i else None
+        rr.commits_since_prev = None
+        rr.files_changed_since_prev = None
+        rr.insertions_since_prev = None
+        rr.deletions_since_prev = None
+        current_ancestors, current_complete = collect_commit_ancestors(
+            rr.resolved_commit_hash, resolution_index.commit_by_hash
+        )
+        if i and rr.resolved_commit_hash and rr.prev_resolved_commit:
+            same_commit = rr.resolved_commit_hash == rr.prev_resolved_commit
+            if same_commit or (current_complete and previous_complete):
+                added = current_ancestors - previous_ancestors
+                commits = [resolution_index.commit_by_hash[commit_hash] for commit_hash in added]
+                rr.commits_since_prev = len(commits)
+                rr.files_changed_since_prev = sum(commit.changed_files_count for commit in commits)
+                rr.insertions_since_prev = sum(commit.insertions for commit in commits)
+                rr.deletions_since_prev = sum(commit.deletions for commit in commits)
+        # Retain only the adjacent release's ancestry to bound memory usage.
+        previous_ancestors, previous_complete = current_ancestors, current_complete
 
     return pub_sorted
 
@@ -748,6 +740,11 @@ def run_release_analysis(
 
     # Compute inter-release diffs
     resolved_list = compute_inter_release_diff(resolved_list, history, index=resolution_index)
+    if any(rr.commits_since_prev is None for rr in resolved_list[1:]):
+        result.incomplete = True
+        result.incomplete_reasons.append(
+            "One or more release deltas are unavailable because commit ancestry is incomplete."
+        )
 
     # Bounded asset verification
     running_total_bytes: list[int] = [0]

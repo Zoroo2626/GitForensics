@@ -46,7 +46,7 @@ Git log formatting uses `%H%x00%P%x00...` format strings without `%G?`.
 
 * Traditional Git signature formatters (`%G?`, `%GS`) can trigger external GPG or SSH helper programs configured in the target repository's `.git/config`.
 * GitForensics disables signature helper execution entirely.
-* Extracted commits are reported conservatively as unverified/unsigned (`GF007`), ensuring static analysis cannot be weaponized into a code execution vector via repository-level signature configuration options.
+* Extracted commits and tags have unknown signature status. GF007 reports unavailable coverage and an unknown count instead of treating uninspected commits as unsigned. Signature presence and validity are not inspected.
 
 ### 4. Bounded Resource Ceilings
 
@@ -68,7 +68,7 @@ Local repository analysis captures immutable state markers (`RepositoryStateMark
 
 ### 6. Network Restrictions and Origin Validation
 
-* Network requests are disabled entirely when `--offline` is specified.
+* Network requests are disabled entirely when `--offline` is specified. Remote inputs are rejected before extraction, and Git transports and lazy fetches are disabled for local scans.
 * GitHub REST API calls are restricted to the approved `api.github.com` HTTPS origin. HTTP redirects to non-approved origins are rejected.
 * Workflow files are downloaded with a separate unauthenticated HTTP client and cookie jar. Authenticated API client state is never reused across origins.
 * Asset digest verification (`--verify-assets`) streams bytes directly into SHA-256 hashers without storing files on disk. Downloads are restricted to an approved host allowlist (`objects.githubusercontent.com`, `github.com`, `api.github.com`).
@@ -90,4 +90,4 @@ Writing scan reports to disk (`--output`) enforces atomic file replacement:
 * **Subprocess Traversal Overhead**: Pathological Git object databases can consume CPU time during Git binary log generation before output ceilings are reached.
 * **Concurrent Local Filesystem Mutations**: State markers detect modifications occurring between scan start and end, but local scans do not freeze filesystem state.
 * **Metadata-Only Attestation Inspection**: GitHub release attestation analysis parses API metadata fields only; cryptographic proof validation is not performed.
-* **Unverified Commit Signatures**: Because signature verification helpers are disabled for code-execution safety, signature status reflects presence of signature data rather than cryptographic validity.
+* **Unknown Commit Signatures**: Signature presence and validity are not inspected. Unknown status is distinct from unsigned; signature coverage is unavailable when any commit has unknown status.

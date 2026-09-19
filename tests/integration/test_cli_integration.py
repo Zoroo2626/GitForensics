@@ -37,7 +37,12 @@ def test_cli_scan_integration_json_output(tmp_path: Path) -> None:
     json_text = result.output[json_start:]
     data = json.loads(json_text)
     assert data["risk_score"] == 0
-    assert data["findings"] == []
+    assert len(data["findings"]) == 1
+    finding = data["findings"][0]
+    assert finding["rule_id"] == "GF007"
+    assert finding["severity"] == "INFO"
+    assert finding["evidence"]["signature_coverage_percentage"] is None
+    assert finding["evidence"]["unknown_signature_count"] == 1
 
 
 def test_cli_scan_integration_file_output(tmp_path: Path) -> None:

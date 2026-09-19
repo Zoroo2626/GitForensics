@@ -85,7 +85,7 @@ gitforensics scan . --no-color
 
 #### `--rules`, `-r`
 
-Specify a comma-separated list of rule IDs to execute. Unlisted rules are skipped.
+Specify a comma-separated list of rule IDs to execute. Unlisted rules are skipped. Surrounding whitespace is accepted; unknown IDs and empty entries fail with exit code 2 before extraction.
 
 ```bash
 gitforensics scan . --rules GF001,GF005,GF006
@@ -120,10 +120,10 @@ gitforensics scan owner/repo --network-timeout 15.0
 
 #### `--offline`
 
-Disable all network-dependent GitHub API requests. Local Git history detectors execute normally.
+Disable network access, including implicit Git fetches from partial clones. Requires a local repository; remote inputs fail with exit code 2 before cloning. Missing local objects cannot be fetched in this mode.
 
 ```bash
-gitforensics scan owner/repo --offline
+gitforensics scan /path/to/repository --offline
 ```
 
 #### `--verify-assets`
